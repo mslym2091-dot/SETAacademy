@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SETA Academy | سيتا أكاديمي</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{ --primary:#1A365D; --secondary:#F59E0B; --success:#10B981; --danger:#EF4444; }
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:#F3F4F6;color:#333;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+#auth-screen{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;padding:20px;z-index:5000;background:#fff;}
+.auth-box{background:#fff;padding:35px 25px;border-radius:20px;width:100%;max-width:400px;box-shadow:0 20px 40px rgba(0,0,0,.1);margin:auto;border:1px solid #eee;}
+.auth-box h1{color:var(--primary);text-align:center;margin-bottom:5px;font-size:28px;font-weight:800;}
+.auth-box input{width:100%;padding:14px;margin-bottom:15px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#f9f9f9}
+.btn-main{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer;margin-top:10px;}
+.auth-toggle{text-align:center;margin-top:15px;font-size:14px;color:#666}
+.auth-toggle a{color:var(--primary);font-weight:bold;cursor:pointer;text-decoration:underline}
+header{background:var(--primary);color:#fff;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 15px rgba(26,54,93,.3);position:sticky;top:0;z-index:100;border-bottom:4px solid var(--secondary);}
+.logo-container h1{color:#fff;font-size:22px;font-weight:bold;cursor:pointer;}
+.menu-btn{background:none;border:none;font-size:26px;cursor:pointer;color:#fff;}
+.sidebar{position:fixed;top:0;right:-280px;width:280px;height:100%;background:#fff;box-shadow:-5px 0 20px rgba(0,0,0,0.15);z-index:2000;transition:0.3s;padding:20px;display:flex;flex-direction:column;}
+.sidebar.open{right:0;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1999;}
+.sidebar-overlay.open{display:block;}
+.sidebar a{padding:15px 10px;text-decoration:none;color:var(--primary);font-weight:bold;border-bottom:1px solid #eee;display:block;cursor:pointer;transition:0.2s;}
+.sidebar a:hover{background:#f5f5f5;padding-right:15px;}
+.sidebar .logout{color:var(--danger);margin-top:auto;}
+.container{max-width:1200px;margin:20px auto;padding:0 15px;display:none;flex:1;width:100%;}
+.container.active{display:block;animation:fadeIn .4s;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+.categories-grid,.subjects-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px;margin-top:15px;}
+.card{background:#fff;padding:30px 20px;border-radius:16px;text-align:center;box-shadow:0 10px 20px rgba(0,0,0,.05);cursor:pointer;transition:.3s;border:1px solid #eee;position:relative;overflow:hidden;}
+.card:hover{transform:translateY(-5px);box-shadow:0 15px 30px rgba(0,0,0,.1);}
+.card h3{color:var(--primary);font-size:20px;font-weight:bold;}
+.card.locked{background:#e5e7eb;color:#6b7280;}
+.card.locked h3{color:#6b7280;}
+.card.locked::after{content:"🔒 مقفول";position:absolute;top:10px;left:10px;font-size:12px;background:#ef4444;color:#fff;padding:4px 8px;border-radius:5px;}
+.card.unlocked::after{content:"🔓 مفتوح";position:absolute;top:10px;left:10px;font-size:12px;background:#10b981;color:#fff;padding:4px 8px;border-radius:5px;}
+.subject-card{padding:20px;border-radius:12px;text-align:center;cursor:pointer;font-weight:bold;color:#fff;box-shadow:0 4px 10px rgba(0,0,0,.1);transition:0.3s;position:relative;}
+.subject-card:hover{transform:scale(1.05);}
+.subject-card:nth-child(6n+1){background:#3B82F6;}
+.subject-card:nth-child(6n+2){background:#EC4899;}
+.subject-card:nth-child(6n+3){background:#10B981;}
+.subject-card:nth-child(6n+4){background:#F59E0B;}
+.subject-card:nth-child(6n+5){background:#8B5CF6;}
+.subject-card:nth-child(6n+6){background:#EF4444;}
+.subject-card.locked-card{background:#9ca3af !important;}
+.lecture-item{background:#fff;padding:18px;margin-bottom:12px;border-radius:12px;border:1px solid #eee;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 5px rgba(0,0,0,0.02);}
+.btn-open{background:var(--secondary);color:#fff;padding:8px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:bold; margin-right:5px;}
+.btn-add-admin{background:var(--success);color:white;padding:10px 15px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;margin-bottom:15px;margin-left:5px;}
+.btn-delete{background:#fee2e2; color:#dc2626; border:none; padding:5px 10px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold;}
+.btn-delete:hover{background:#fca5a5;}
+.back-btn{background:none;border:none;color:var(--primary);font-size:16px;cursor:pointer;margin-bottom:15px;font-weight:bold;}
+.video-container{background:#000;border-radius:16px;overflow:hidden;position:relative;margin-bottom:20px;box-shadow:0 10px 25px rgba(0,0,0,.2);}
+.video-wrapper{position:relative;width:100%;aspect-ratio:16/9;background:#000;}
+#youtube-player{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#youtube-player iframe{width:100%!important;height:100%!important;pointer-events:none;}
+.video-shield{position:absolute;inset:0;z-index:5;background:transparent;}
+.video-controls{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.9));padding:15px;z-index:10;display:flex;flex-direction:column;gap:10px;}
+.video-controls .row{display:flex;gap:15px;justify-content:center;align-items:center;flex-wrap:wrap; position:relative;}
+.video-controls button{background:none;border:none;color:white;font-size:20px;cursor:pointer;}
+.volume-container{display:flex;align-items:center;gap:5px;}
+.volume-container input{width:80px;}
+.progress-bar-container{display:flex;align-items:center;gap:10px;width:100%;color:white;}
+.progress-bar-container input{flex:1;}
+.teachers-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;}
+.teacher-card{background:#fff;padding:20px;border-radius:15px;text-align:center;box-shadow:0 5px 15px rgba(0,0,0,0.05); position:relative;}
+.teacher-card img{width:100px;height:100px;border-radius:50%;object-fit:cover;margin-bottom:10px;border:3px solid var(--secondary);}
+footer{text-align:center;padding:20px;background:var(--primary);color:white;margin-top:auto;}
+.whatsapp-float{position:fixed;bottom:20px;left:20px;background:#25D366;color:white;border-radius:50px;padding:10px 20px;text-decoration:none;display:flex;align-items:center;gap:10px;font-weight:bold;box-shadow:0 4px 15px rgba(37,211,102,0.4);z-index:1000;}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;justify-content:center;align-items:center;padding:20px;}
+.modal.show{display:flex;}
+.modal-content{background:#fff;padding:25px;border-radius:15px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;}
+.modal-content input, .modal-content select{width:100%;padding:12px;margin:8px 0;border:1px solid #ddd;border-radius:8px;font-size:15px;}
+.speed-menu{position:absolute; bottom:60px; right:20px; background:rgba(0,0,0,0.8); border-radius:10px; padding:10px; display:none; flex-direction:column; gap:5px; z-index:20;}
+.speed-menu.show{display:flex;}
+.speed-menu button{color:white; background:none; border:none; padding:5px 10px; cursor:pointer; font-size:14px; text-align:right; border-radius:5px; transition:0.2s;}
+.speed-menu button:hover{background:rgba(255,255,255,0.2);}
+</style>
+</head>
+<body>
+    <div class="sidebar-overlay" onclick="toggleMenu()"></div>
+<div class="sidebar" id="sidebar">
+    <h2 style="color:var(--primary);margin-bottom:20px;">القائمة</h2>
+    <a onclick="showView('home');toggleMenu()">الرئيسية</a>
+    <a onclick="showView('about');toggleMenu()">نبذة عنا</a>
+    <a onclick="showView('teachers');toggleMenu()">المدرسين</a>
+    <a onclick="showView('account');toggleMenu()">حسابي</a>
+    <a onclick="openActivationModal();toggleMenu()">تفعيل كود</a>
+    <a class="logout" onclick="logout()">تسجيل الخروج</a>
+</div>
+
+<header id="main-header" style="display:none">
+  <div class="logo-container" onclick="showView('home')"><h1>SETA ACADEMY</h1></div>
+  <button class="menu-btn" onclick="toggleMenu()">☰</button>
+</header>
+
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>SETA ACADEMY</h1>
+    <p style="text-align:center;color:#888;margin-bottom:20px;">منصة تأهيل طلاب المعادلة</p>
+    
+    <div id="login-form">
+      <input type="text" id="login-name" placeholder="الاسم بالكامل (أو الإيميل)">
+      <input type="password" id="login-pass" placeholder="الباسورد">
+      <label style="display:flex; align-items:center; gap:8px; font-size:14px; color:#666; margin-bottom:10px; cursor:pointer;">
+          <input type="checkbox" id="remember-me" style="width:auto; margin:0; cursor:pointer;"> تذكرني (الدخول تلقائياً المرة القادمة)
+      </label>
+      <button class="btn-main" onclick="doLogin()">تسجيل الدخول</button>
+      <p class="auth-toggle">معندكش حساب؟ <a onclick="toggleAuth('register')">سجّل دلوقتي</a></p>
+    </div>
+    
+    <div id="register-form" style="display:none">
+      <input type="text" id="reg-name" placeholder="الاسم بالكامل">
+      <input type="email" id="reg-email" placeholder="الإيميل">
+      <input type="tel" id="reg-phone" placeholder="رقم الموبايل">
+      <input type="password" id="reg-pass" placeholder="الباسورد">
+      <button class="btn-main" onclick="doRegister()">إنشاء الحساب</button>
+      <p class="auth-toggle">عندك حساب؟ <a onclick="toggleAuth('login')">ادخل هنا</a></p>
+    </div>
+  </div>
+</div>
+
+<div id="home" class="container">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+        <h2 style="color:var(--primary);">تصفح الأقسام</h2>
+        <div>
+            <button id="admin-add-cat" class="btn-add-admin" style="display:none" onclick="addCategory()">+ إضافة قسم</button>
+            <button id="admin-manage-codes" class="btn-add-admin" style="display:none;background:var(--primary);" onclick="manageCodes()">🎟️ إدارة الأكواد</button>
+        </div>
+    </div>
+    <div class="categories-grid" id="categories-grid"></div>
+</div>
+
+<div id="category-view" class="container">
+    <button class="back-btn" onclick="goBack()">← رجوع للأقسام</button>
+    <h2 id="category-title" style="color:var(--primary);"></h2>
+    <button id="admin-add-subject" class="btn-add-admin" style="display:none" onclick="addSubject()">+ إضافة مادة</button>
+    <div class="subjects-grid" id="subjects-grid"></div>
+</div>
+
+<div id="subject-view" class="container">
+    <button class="back-btn" onclick="goBack()">← رجوع للمواد</button>
+    <h2 id="subject-title" style="color:var(--primary);"></h2>
+    <button id="admin-add-lecture" class="btn-add-admin" style="display:none" onclick="addLecture()">+ إضافة محاضرة</button>
+    <div id="lectures-list"></div>
+</div>
+
+<div id="lecture-view" class="container">
+  <button class="back-btn" onclick="goBack()">← رجوع للمحاضرات</button>
+  <h2 id="lecture-title" style="color:var(--primary);margin-bottom:15px;"></h2>
+  <div class="video-container">
+      <div class="video-wrapper">
+        <div id="youtube-player"></div>
+        <div class="video-shield"></div>
+        <div class="video-controls">
+          <div class="progress-bar-container">
+             <span id="current-time">0:00</span>
+             <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" oninput="seekTo(this.value)">
+             <span id="total-time">0:00</span>
+          </div>
+          <div class="row">
+              <button onclick="togglePlay()">⏯️</button>
+              <div class="volume-container">
+                  <button onclick="toggleMute()" id="mute-btn">🔊</button>
+                  <input type="range" id="volume-slider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+              </div>
+              <button onclick="toggleSpeedMenu(event)">⚙️</button>
+              <button onclick="toggleFullScreen()">⛶</button>
+              
+              <div class="speed-menu" id="speed-menu">
+                  <button onclick="setSpeed(0.5)">0.5x</button>
+                  <button onclick="setSpeed(0.75)">0.75x</button>
+                  <button onclick="setSpeed(1)">1x (عادي)</button>
+                  <button onclick="setSpeed(1.25)">1.25x</button>
+                  <button onclick="setSpeed(1.5)">1.5x</button>
+                  <button onclick="setSpeed(1.75)">1.75x</button>
+                  <button onclick="setSpeed(2)">2x</button>
+              </div>
+          </div>
+        </div>
+      </div>
+  </div>
+  <div id="lecture-attachments" style="background:#fff;padding:20px;border-radius:12px;margin-top:15px;"></div>
+</div>
+
+<div id="teachers" class="container">
+    <button class="back-btn" onclick="goBack()">← رجوع</button>
+    <h2 style="color:var(--primary);">نخبة المدرسين</h2>
+    <button id="admin-add-teacher" class="btn-add-admin" style="display:none" onclick="addTeacher()">+ إضافة مدرس</button>
+    <div class="teachers-grid" id="teachers-list"></div>
+</div>
+
+<div id="account" class="container">
+    <button class="back-btn" onclick="goBack()">← رجوع</button>
+    <h2 style="color:var(--primary);">حسابي</h2>
+    <div id="account-info" style="background:#fff;padding:20px;border-radius:10px;margin-top:15px;"></div>
+</div>
+
+<div id="about" class="container">
+    <button class="back-btn" onclick="goBack()">← رجوع</button>
+    <h2 style="color:var(--primary);">من نحن؟</h2>
+    <p style="margin-top:15px;line-height:1.8;">مرحباً بك في سيتا أكاديمي، منصتك الأولى لتأهيل طلاب المعادلة والدبلوم الفني.</p>
+</div>
+
+<div id="gen-modal" class="modal"><div class="modal-content" id="gen-modal-content"></div></div>
+
+<footer><p>© 2024 SETA ACADEMY - جميع الحقوق محفوظة</p></footer>
+<a href="https://wa.me/201555934947" target="_blank" class="whatsapp-float"><span style="font-size:24px;">💬</span> الدعم الفني</a>
+<script>
+    const SUPABASE_URL = 'https://rsmxvjkqtcblrkjfcxil.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_R1ytHU-3KkmEo6g0hv5SyA_ScgkZs0y';
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let CURRENT_USER = null, CURRENT_CAT = null, CURRENT_SUB = null;
+    let ytPlayer = null, ytReady = false, pendingId = null;
+    let historyStack = [];
+
+    // ===== التذكر والرجوع =====
+    window.onload = async () => {
+        const savedUser = localStorage.getItem('seta_user');
+        if(savedUser) {
+            const parsedUser = JSON.parse(savedUser);
+            const { data } = await db.from('users').select('*').eq('id', parsedUser.id).eq('is_banned', false).single();
+            if(data) {
+                CURRENT_USER = data;
+                enterPlatform();
+                return;
+            }
+        }
+        document.getElementById('auth-screen').style.display = 'flex';
+    };
+
+    window.onpopstate = function(event) {
+        if(event.state && event.state.view) {
+            showView(event.state.view, false);
+        } else {
+            goBack();
+        }
+    };
+
+    function goBack() {
+        if(historyStack.length > 1) {
+            historyStack.pop(); // Remove current
+            const prevView = historyStack.pop(); // Get previous
+            showView(prevView, false);
+        } else {
+            showView('home', false);
+        }
+    }
+
+    function toggleMenu() { 
+        document.getElementById('sidebar').classList.toggle('open'); 
+        document.querySelector('.sidebar-overlay').classList.toggle('open'); 
+    }
+    
+    function toggleAuth(w){ 
+        document.getElementById('login-form').style.display = w === 'login' ? 'block' : 'none'; 
+        document.getElementById('register-form').style.display = w === 'register' ? 'block' : 'none'; 
+    }
+    
+    function showView(id, pushState = true) {
+        document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+        const target = document.getElementById(id);
+        if(target) target.classList.add('active');
+        
+        if(pushState) {
+            historyStack.push(id);
+            window.history.pushState({ view: id }, '', '#' + id);
+        }
+
+        if(id !== 'lecture-view') stopVideo();
+        if(id === 'teachers') loadTeachers();
+        if(id === 'account') showAccount();
+    }
+
+    // ===== الدخول والتسجيل =====
+    async function doLogin() {
+        const input = document.getElementById('login-name').value.trim();
+        const pass = document.getElementById('login-pass').value;
+        const remember = document.getElementById('remember-me').checked;
+        
+        if(!input || !pass) return alert('اكتب البيانات المطلوبة');
+        
+        const { data, error } = await db.from('users').select('*').or(`name.eq.${input},email.eq.${input},phone.eq.${input}`).eq('password', pass).single();
+        
+        if(error || !data) return alert('بيانات الدخول غلط');
+        if(data.is_banned) return alert('هذا الحساب موقوف.');
+        
+        CURRENT_USER = data;
+        if(remember) localStorage.setItem('seta_user', JSON.stringify({ id: data.id }));
+        else localStorage.removeItem('seta_user');
+        
+        enterPlatform();
+    }
+
+    async function doRegister() {
+        const name = document.getElementById('reg-name').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const phone = document.getElementById('reg-phone').value.trim();
+        const pass = document.getElementById('reg-pass').value;
+        
+        if(!name || !email || !phone || !pass || pass.length < 6) return alert('تأكد من كل البيانات (باسورد 6 حروف)');
+        
+        const { data, error } = await db.from('users').insert([{ name, email, phone, password: pass, role: 'student' }]).select().single();
+        
+        if(error) { 
+            if(error.code === '23505') return alert('الإيميل أو الموبايل مسجل بالفعل'); 
+            return alert('حدث خطأ: ' + error.message); 
+        }
+        
+        alert('تم إنشاء الحساب بنجاح! هتدخل على طول.'); 
+        CURRENT_USER = data;
+        enterPlatform();
+    }
+
+    function enterPlatform() {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('main-header').style.display = 'flex';
+        
+        const isAdmin = CURRENT_USER.role === 'admin';
+        const isTeacher = CURRENT_USER.role === 'teacher';
+        
+        document.getElementById('admin-add-cat').style.display = isAdmin ? 'block' : 'none';
+        document.getElementById('admin-manage-codes').style.display = isAdmin ? 'block' : 'none';
+        document.getElementById('admin-add-subject').style.display = isAdmin ? 'block' : 'none';
+        document.getElementById('admin-add-lecture').style.display = (isAdmin || isTeacher) ? 'block' : 'none';
+        document.getElementById('admin-add-teacher').style.display = isAdmin ? 'block' : 'none';
+        
+        historyStack = [];
+        showView('home'); 
+        loadCategories();
+    }
+
+    function logout() { 
+        CURRENT_USER = null; 
+        localStorage.removeItem('seta_user');
+        document.getElementById('auth-screen').style.display = 'flex'; 
+        document.getElementById('main-header').style.display = 'none'; 
+        toggleAuth('login'); toggleMenu(); 
+        historyStack = [];
+    }
+
+    async function showAccount() {
+        const status = CURRENT_USER.is_banned ? '<span style="color:red">موقوف</span>' : '<span style="color:green">نشط</span>';
+        document.getElementById('account-info').innerHTML = `
+            <p style="margin-bottom:10px;"><strong>الاسم:</strong> ${CURRENT_USER.name}</p>
+            <p style="margin-bottom:10px;"><strong>الإيميل:</strong> ${CURRENT_USER.email || 'غير مسجل'}</p>
+            <p style="margin-bottom:10px;"><strong>الموبايل:</strong> ${CURRENT_USER.phone}</p>
+            <p style="margin-bottom:10px;"><strong>الصلاحية:</strong> ${CURRENT_USER.role === 'admin' ? 'أدمن' : 'طالب'}</p>
+            <p><strong>الحالة:</strong> ${status}</p>
+        `;
+    }
+
+  async function loadCategories() {
+    const grid = document.getElementById('categories-grid'); grid.innerHTML = '<p>جاري التحميل...</p>';
+    const { data: cats, error } = await db.from('categories').select('*');
+    if(error) return grid.innerHTML = 'خطأ في تحميل الأقسام';
+    
+    let accessData = [];
+    if (CURRENT_USER.role === 'student') {
+        const { data: acc } = await db.from('user_access').select('*').eq('user_id', CURRENT_USER.id);
+        accessData = acc || [];
+    }
+    
+    grid.innerHTML = '';
+    cats.forEach(cat => {
+        const div = document.createElement('div');
+        // هنا التعديل بتاع القسم المجاني
+        let isUnlocked = CURRENT_USER.role === 'admin' || cat.is_free || accessData.some(a => a.type === 'category' && a.target_id === cat.id);
+        
+        div.className = 'card ' + (isUnlocked ? 'unlocked' : 'locked');
+        
+        let deleteBtn = CURRENT_USER.role === 'admin' ? `<button class="btn-delete" onclick="event.stopPropagation(); deleteItem('categories', '${cat.id}')">🗑️</button>` : '';
+        div.innerHTML = `<h3>${cat.title}</h3> ${deleteBtn}`;
+        
+        div.onclick = () => {
+            if (!isUnlocked) return alert('هذا القسم مقفول. يرجى تفعيل كود للدخول.');
+            openCategory(cat);
+        };
+        grid.appendChild(div);
+    });
+}
+
+    async function openCategory(cat) {
+    CURRENT_CAT = cat; 
+    document.getElementById('category-title').innerText = cat.title; 
+    showView('category-view');
+    
+    const grid = document.getElementById('subjects-grid'); 
+    grid.innerHTML = '<p>جاري التحميل...</p>';
+    
+    const { data, error } = await db.from('subjects').select('*').eq('category_id', cat.id);
+    if(error) return grid.innerHTML = 'خطأ';
+    
+    let accessData = [];
+    if (CURRENT_USER.role === 'student') {
+        const { data: acc } = await db.from('user_access').select('*').eq('user_id', CURRENT_USER.id);
+        accessData = acc || [];
+    }
+    
+    grid.innerHTML = '';
+    if(data.length === 0) grid.innerHTML = '<p>لا توجد مواد مضافة بعد.</p>';
+    
+    data.forEach(sub => {
+        const div = document.createElement('div');
+        
+        let isCatUnlocked = CURRENT_USER.role === 'admin' || cat.is_free || accessData.some(a => a.type === 'category' && a.target_id === cat.id);
+        let isSubUnlocked = isCatUnlocked || accessData.some(a => a.type === 'subject' && a.target_id === sub.id);
+        
+        // لو القسم أو المادة مقفولة، لسه بنسمح بالدخول عشان يشوف الأساسيات
+        div.className = 'subject-card ' + (isSubUnlocked ? '' : 'locked-card');
+        
+        let deleteBtn = CURRENT_USER.role === 'admin' ? `<button class="btn-delete" style="background:#fff; color:#dc2626; margin-top:10px;" onclick="event.stopPropagation(); deleteItem('subjects', '${sub.id}')">🗑️</button>` : '';
+        div.innerHTML = `<h3>${sub.title}</h3> ${deleteBtn}`;
+        
+        div.onclick = () => {
+            // إحنا شلنا الـ alert اللي كان بيمنع الدخول، عشان نقدر ندخل نشوف الأساسيات
+            openSubject(sub, isSubUnlocked);
+        };
+        grid.appendChild(div);
+    });
+}
+
+async function openSubject(sub) {
+    CURRENT_SUB = sub; 
+    document.getElementById('subject-title').innerText = sub.title; 
+    showView('subject-view');
+    
+    const list = document.getElementById('lectures-list'); list.innerHTML = '<p>جاري التحميل...</p>';
+    const { data, error } = await db.from('lectures').select('*').eq('subject_id', sub.id);
+    if(error) return list.innerHTML = 'خطأ';
+
+    let accessData = [];
+    if (CURRENT_USER.role === 'student') {
+        const { data: acc } = await db.from('user_access').select('*').eq('user_id', CURRENT_USER.id);
+        accessData = acc || [];
+    }
+
+    // التأكد إن الطالب فاتح المادة دي ولا لأ
+    let isSubUnlocked = CURRENT_USER.role === 'admin' || CURRENT_CAT.is_free || accessData.some(a => a.type === 'category' && a.target_id === CURRENT_CAT.id) || accessData.some(a => a.type === 'subject' && a.target_id === sub.id);
+    
+    list.innerHTML = '';
+    let hasLectures = false;
+
+    data.forEach(lec => { 
+        // لو الطالب مش فاتح المادة، هيعرض المحاضرات اللي عليها is_free بس
+        if (!isSubUnlocked && !lec.is_free) return; 
+        
+        hasLectures = true;
+        const div = document.createElement('div'); 
+        div.className = 'lecture-item'; 
+        
+        let deleteBtn = (CURRENT_USER.role === 'admin' || CURRENT_USER.role === 'teacher') ? `<button class="btn-delete" onclick="deleteItem('lectures', '${lec.id}')">🗑️</button>` : '';
+        
+        let freeBtn = '';
+        if (CURRENT_USER.role === 'admin') {
+            freeBtn = `<button onclick="toggleLectureFree('${lec.id}', ${lec.is_free})" style="background:${lec.is_free ? '#d1fae5' : '#f3f4f6'}; color:${lec.is_free ? '#059669' : '#4b5563'}; border:1px solid #ddd; padding:4px 8px; border-radius:5px; cursor:pointer; font-size:12px; margin-left:5px;">
+                ${lec.is_free ? '✅ أساسيات (مفتوح)' : '🔓 اجعلها أساسيات'}
+            </button>`;
+        }
+
+        div.innerHTML = `<span>${lec.title} ${lec.is_free && !isSubUnlocked ? '<span style="color:#10B981; font-size:12px;">(أساسيات)</span>' : ''}</span> 
+            <div style="display:flex; align-items:center;">
+                ${freeBtn}
+                ${deleteBtn}
+                <button class="btn-open" onclick="openLecture('${lec.id}', '${lec.video_id}', '${lec.title}', '${lec.solution_video_id || ''}', '${lec.pdf_url || ''}', '${lec.exam_url || ''}')">دخول</button>
+            </div>`; 
+        list.appendChild(div); 
+    });
+
+    if(!hasLectures) list.innerHTML = '<p>لا توجد محاضرات متاحة لك حالياً. (قد تحتاج لتفعيل كود).</p>';
+}
+
+// دالة تحويل المحاضرة لأساسيات
+async function toggleLectureFree(lecId, currentStatus) {
+    await db.from('lectures').update({ is_free: !currentStatus }).eq('id', lecId);
+    openSubject(CURRENT_SUB); 
+}
+// دالة تحويل المحاضرة لأساسيات
+async function toggleLectureFree(lecId, currentStatus) {
+    await db.from('lectures').update({ is_free: !currentStatus }).eq('id', lecId);
+    openSubject(CURRENT_SUB); 
+}
+
+
+// دالة تحويل المحاضرة لمجاني
+async function toggleLectureFree(lecId, currentStatus) {
+    await db.from('lectures').update({ is_free: !currentStatus }).eq('id', lecId);
+    openSubject(CURRENT_SUB); 
+}
+
+    async function addCategory() { const title = prompt('اسم القسم:'); if(!title) return; await db.from('categories').insert([{ title }]); loadCategories(); }
+    async function addSubject() { const title = prompt('اسم المادة:'); if(!title) return; await db.from('subjects').insert([{ category_id: CURRENT_CAT.id, title }]); openCategory(CURRENT_CAT); }
+
+    // ===== المحاضرات والفيديو =====
+    async function addLecture() {
+        const title = prompt('عنوان المحاضرة:'); if(!title) return;
+        const video_url = prompt('لينك فيديو الشرح:'); if(!video_url) return;
+        const solution_url = prompt('لينك فيديو الحل (اختياري):') || '';
+        const pdf_url = prompt('لينك ملف PDF/شيت/درايف (اختياري):') || '';
+        const exam_url = prompt('لينك الامتحان (اختياري):') || '';
+        
+        function extractId(url) {
+            if (!url) return '';
+            if (url.includes('v=')) return url.split('v=')[1].split('&')[0];
+            if (url.includes('youtu.be/')) return url.split('youtu.be/')[1].split('?')[0];
+            if (url.includes('shorts/')) return url.split('shorts/')[1].split('?')[0];
+            return url;
+        }
+
+        await db.from('lectures').insert([{ 
+            subject_id: CURRENT_SUB.id, 
+            title: title, 
+            video_id: extractId(video_url), 
+            solution_video_id: extractId(solution_url), 
+            pdf_url: pdf_url, 
+            exam_url: exam_url 
+        }]);
+        openSubject(CURRENT_SUB);
+    }
+
+    function openLecture(id, videoId, title, solId, pdfUrl, examUrl) {
+        document.getElementById('lecture-title').innerText = title;
+        let attHtml = '<h3>الملحقات:</h3>';
+        if(solId) attHtml += `<button class="btn-open" style="margin-top:10px; display:block; width:100%; background:#1A365D;" onclick="loadVideo('${solId}')">▶️ شاهد فيديو الحل</button>`;
+        if(pdfUrl) attHtml += `<a href="${pdfUrl}" target="_blank" style="display:block; margin-top:10px; background:#10B981; color:white; padding:10px; text-align:center; text-decoration:none; border-radius:8px; font-weight:bold;">📄 فتح الشيت / الدرايف</a>`;
+        if(examUrl) attHtml += `<a href="${examUrl}" target="_blank" style="display:block; margin-top:10px; background:#F59E0B; color:white; padding:10px; text-align:center; text-decoration:none; border-radius:8px; font-weight:bold;">📝 دخول الامتحان</a>`;
+        if(!solId && !pdfUrl && !examUrl) attHtml += '<p style="color:#888;">لا توجد ملحقات.</p>';
+        
+        document.getElementById('lecture-attachments').innerHTML = attHtml;
+        showView('lecture-view');
+        loadVideo(videoId);
+    }
+
+    function onYouTubeIframeAPIReady() { ytReady = true; if(pendingId) { createPlayer(pendingId); pendingId = null; } }
+    
+    function createPlayer(videoId) {
+        document.getElementById('youtube-player').innerHTML = '<div id="yt-player-div"></div>';
+        ytPlayer = new YT.Player('yt-player-div', { 
+            height: '100%', width: '100%', videoId: videoId, 
+            playerVars: { 'controls': 0, 'disablekb': 1, 'modestbranding': 1, 'rel': 0, 'fs': 0, 'playsinline': 1, 'autoplay': 0 }, 
+            events: { 'onReady': onPlayerReady } 
+        });
+    }
+    
+    function loadVideo(videoId) {
+        if(!videoId) return;
+        if(ytReady && typeof YT !== 'undefined' && YT.Player) {
+            if(ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
+            else createPlayer(videoId);
+        } else {
+            pendingId = videoId;
+            if(!document.getElementById('yt-api-script')) {
+                const tag = document.createElement('script'); tag.id = 'yt-api-script'; tag.src = 'https://www.youtube.com/iframe_api'; document.body.appendChild(tag);
+            }
+        }
+    }
+    
+    function onPlayerReady() { setInterval(updateProgress, 500); ytPlayer.setVolume(100); }
+    function updateProgress() {
+        if(!ytPlayer || !ytPlayer.getCurrentTime) return;
+        const cur = ytPlayer.getCurrentTime() || 0, dur = ytPlayer.getDuration() || 0;
+        if(dur > 0) {
+            document.getElementById('progress-bar').value = (cur / dur) * 100;
+            document.getElementById('current-time').innerText = formatTime(cur);
+            document.getElementById('total-time').innerText = formatTime(dur);
+        }
+    }
+    function formatTime(sec) { sec = Math.floor(sec); return Math.floor(sec/60) + ':' + (sec%60 < 10 ? '0' : '') + sec%60; }
+    function seekTo(val) { if(ytPlayer && ytPlayer.getDuration) ytPlayer.seekTo((val / 100) * ytPlayer.getDuration(), true); }
+    function togglePlay() { if(!ytPlayer) return; ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); }
+    
+    function setVolume(val) { if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(parseInt(val)); document.getElementById('mute-btn').innerText = val == 0 ? '🔇' : '🔊'; }
+    function toggleMute() { if(!ytPlayer) return; if(ytPlayer.isMuted()) { ytPlayer.unMute(); document.getElementById('mute-btn').innerText = '🔊'; } else { ytPlayer.mute(); document.getElementById('mute-btn').innerText = '🔇'; } }
+    
+    function toggleFullScreen() { 
+        const el = document.querySelector('.video-container'); 
+        if (!document.fullscreenElement) { 
+            if (el.requestFullscreen) el.requestFullscreen();
+            if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(e => console.log(e));
+        } else { 
+            if (document.exitFullscreen) document.exitFullscreen(); 
+            if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+        } 
+    }
+
+    function stopVideo() { if(ytPlayer && ytPlayer.stopVideo) { try { ytPlayer.stopVideo(); } catch(e){} } }
+
+    function toggleSpeedMenu(e) { e.stopPropagation(); document.getElementById('speed-menu').classList.toggle('show'); }
+    function setSpeed(speed) { if(ytPlayer && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(speed); document.getElementById('speed-menu').classList.remove('show'); }
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('speed-menu');
+        if (menu && menu.classList.contains('show') && !e.target.closest('.speed-menu') && !e.target.closest('button[onclick*="toggleSpeedMenu"]')) { menu.classList.remove('show'); }
+    });
+
+    // ===== المدرسين والمسح =====
+    async function loadTeachers() {
+        const grid = document.getElementById('teachers-list'); grid.innerHTML = '<p>جاري التحميل...</p>';
+        const { data } = await db.from('teachers').select('*');
+        grid.innerHTML = '';
+        if(data.length === 0) grid.innerHTML = '<p>لا يوجد مدرسون.</p>';
+        data.forEach(t => { 
+            let deleteBtn = CURRENT_USER.role === 'admin' ? `<button class="btn-delete" style="position:absolute; top:10px; left:10px;" onclick="deleteItem('teachers', '${t.id}')">🗑️</button>` : '';
+            grid.innerHTML += `<div class="teacher-card">${deleteBtn}<img src="${t.img || 'https://via.placeholder.com/100'}"><h3 style="color:var(--primary);">${t.name}</h3><p style="color:#666;">${t.subject || ''}</p></div>`; 
+        });
+    }
+
+    async function addTeacher() {
+        const name = prompt('اسم المدرس:'); if(!name) return;
+        const subject = prompt('المادة:') || '';
+        const img = prompt('لينك الصورة:') || '';
+        await db.from('teachers').insert([{ name, subject, img }]);
+        loadTeachers();
+    }
+
+    async function deleteItem(table, id) {
+        if(!confirm('متأكد من المسح؟')) return;
+        await db.from(table).delete().eq('id', id);
+        alert('تم المسح');
+        if(table === 'categories') loadCategories();
+        if(table === 'subjects') openCategory(CURRENT_CAT);
+        if(table === 'lectures') openSubject(CURRENT_SUB);
+        if(table === 'teachers') loadTeachers();
+    }
+
+    // ===== الأكواد =====
+    function openActivationModal() { 
+        document.getElementById('gen-modal-content').innerHTML = `
+            <h3 style="color:var(--primary);margin-bottom:15px;">تفعيل كود</h3>
+            <input id="activation-code-input" placeholder="اكتب الكود هنا">
+            <button class="btn-main" onclick="activateCode()">تفعيل</button>
+            <button class="btn-main" style="background:#888;margin-top:8px;" onclick="closeModal()">إلغاء</button>
+        `; 
+        document.getElementById('gen-modal').classList.add('show'); 
+    }
+    
+    async function activateCode() {
+        const code = document.getElementById('activation-code-input').value.trim();
+        const { data, error } = await db.from('activation_codes').select('*').eq('code', code).eq('used', false).single();
+        if(error || !data) return alert('كود غلط أو مستخدم');
+        await db.from('activation_codes').update({ used: true, used_by: CURRENT_USER.id }).eq('id', data.id);
+        await db.from('user_access').insert([{ user_id: CURRENT_USER.id, type: data.type, target_id: data.target_id, code_id: data.id }]);
+        alert('تم التفعيل بنجاح!'); closeModal(); loadCategories();
+    }
+
+async function manageCodes() {
+    document.getElementById('gen-modal-content').innerHTML = `
+        <h3 style="color:var(--primary);margin-bottom:15px;">إدارة الأكواد والأقسام</h3>
+        
+        <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
+            <p style="font-weight:bold; margin-bottom:10px;">أقسامك (تحويل لمجاني أو مدفوع):</p>
+            <div id="admin-cats-list" style="margin-bottom:15px;"></div>
+        </div>
+
+        <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
+            <p style="font-weight:bold; margin-bottom:10px;">توليد كود جديد:</p>
+            <select id="code-cat-select" onchange="loadSubjectsForCode()" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ddd;">
+                <option value="">-- اختر القسم --</option>
+            </select>
+            <select id="code-sub-select" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ddd;" disabled>
+                <option value="">-- اختر المادة (اختياري) --</option>
+            </select>
+            <button class="btn-main" style="background:var(--success);" onclick="generateCodeNew()">توليد الكود</button>
+        </div>
+
+        <p style="font-weight:bold; margin-bottom:10px;">الأكواد الحالية:</p>
+        <div id="codes-list" style="max-height:250px; overflow-y:auto; background:#fff; border:1px solid #eee; border-radius:10px; padding:10px;">جاري التحميل...</div>
+        
+        <button class="btn-main" style="background:#888; margin-top:15px;" onclick="closeModal()">إغلاق</button>
+    `;
+    document.getElementById('gen-modal').classList.add('show');
+    
+    const { data: cats } = await db.from('categories').select('*');
+    const catSelect = document.getElementById('code-cat-select');
+    const adminList = document.getElementById('admin-cats-list');
+    
+    cats.forEach(c => {
+        catSelect.innerHTML += `<option value="${c.id}">${c.title}</option>`;
+        adminList.innerHTML += `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                <span>${c.title} ${c.is_free ? '✅ (مجاني)' : '🔒 (مدفوع)'}</span>
+                <button onclick="toggleFree('${c.id}', ${c.is_free})" style="background:${c.is_free ? '#fee2e2' : '#d1fae5'}; color:${c.is_free ? '#dc2626' : '#059669'}; border:none; padding:4px 8px; border-radius:5px; cursor:pointer; font-size:12px;">
+                    ${c.is_free ? 'تحويل لمدفوع' : 'تحويل لمجاني'}
+                </button>
+            </div>
+        `;
+    });
+
+    loadCodes();
+}
+
+async function toggleFree(catId, currentStatus) {
+    await db.from('categories').update({ is_free: !currentStatus }).eq('id', catId);
+    manageCodes(); 
+    loadCategories(); 
+}
+    async function loadSubjectsForCode() {
+        const catId = document.getElementById('code-cat-select').value;
+        const subSelect = document.getElementById('code-sub-select');
+        if(!catId) { subSelect.disabled = true; subSelect.innerHTML = '<option value="">-- اختر المادة (اختياري) --</option>'; return; }
+        subSelect.disabled = false;
+        subSelect.innerHTML = '<option value="">-- اختر المادة (أو اتركه فارغ) --</option>';
+        
+        const { data: subs } = await db.from('subjects').select('*').eq('category_id', catId);
+        subs.forEach(s => { subSelect.innerHTML += `<option value="${s.id}">${s.title}</option>`; });
+    }
+
+    async function generateCodeNew() {
+        const catId = document.getElementById('code-cat-select').value;
+        const subId = document.getElementById('code-sub-select').value;
+        if(!catId) return alert('اختر القسم');
+        
+        const type = subId ? 'subject' : 'category';
+        const target_id = subId ? subId : catId;
+        const code = 'SETA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        await db.from('activation_codes').insert([{ code, type, target_id, used: false }]);
+        alert('تم إنشاء الكود: ' + code);
+        loadCodes();
+    }
+
+    async function loadCodes() {
+        const list = document.getElementById('codes-list');
+        const { data } = await db.from('activation_codes').select('*').order('created_at', { ascending: false });
+        list.innerHTML = data.map(c => `
+            <div style="padding:5px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
+                <span>${c.code}</span>
+                <span>${c.used ? 'مستخدم' : 'متاح'}</span>
+                ${!c.used ? `<button onclick="deleteCode('${c.id}')" style="color:red; border:none; background:none; cursor:pointer;">حذف</button>` : ''}
+            </div>
+        `).join('');
+    }
+
+    async function deleteCode(id) { 
+        await db.from('activation_codes').delete().eq('id', id); 
+        loadCodes(); 
+    }
+    
+    function closeModal() { document.getElementById('gen-modal').classList.remove('show'); }
+
+    if(typeof YT !== 'undefined' && YT.loaded) onYouTubeIframeAPIReady();
+</script>
+</body>
+</html>
+  
